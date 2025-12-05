@@ -120,13 +120,138 @@ class DemandPredictor:
             print(f"Prediction error: {e}")
             return 150
 
-class GeneticOptimizer:
-    def __init__(self):
-        pass
+import random
 
-    def optimize_supply_chain(self, demand_forecast):
+class GeneticOptimizer:
+    def __init__(self, population_size=20, generations=10, mutation_rate=0.1):
+        self.population_size = population_size
+        self.generations = generations
+        self.mutation_rate = mutation_rate
+        
+        # Route types: (Cost, Lead Time in days)
+        self.routes = [
+            {"id": 0, "name": "Standard Truck", "cost": 50, "lead_time": 5},
+            {"id": 1, "name": "Express Van", "cost": 150, "lead_time": 2},
+            {"id": 2, "name": "Air Freight", "cost": 500, "lead_time": 1},
+        ]
+
+    def _simulate_cost(self, gene, predicted_monthly_demand, current_stock):
+        reorder_point, safety_stock, route_idx = gene
+        route = self.routes[route_idx]
+        
+        holding_cost_per_unit = 0.5
+        stockout_cost_per_unit = 20.0
+        ordering_cost = route["cost"]
+        lead_time = route["lead_time"]
+        
+        daily_demand_mean = predicted_monthly_demand / 30.0
+        
+        stock = current_stock
+        total_cost = 0
+        order_pending_days = 0
+        order_incoming = False
+        orders_placed = 0
+        
+        stock_sum = 0
+        stockout_sum = 0
+        
+        # Simulate 30 days
+        for _ in range(30):
+            # Demand fluctuation
+            daily_demand = max(0, int(random.gauss(daily_demand_mean, daily_demand_mean * 0.2)))
+            
+            # Fulfill demand
+            if stock >= daily_demand:
+                stock -= daily_demand
+            else:
+                stockout_sum += (daily_demand - stock)
+                stock = 0
+                
+            # Receive order
+            if order_incoming:
+                order_pending_days -= 1
+                if order_pending_days <= 0:
+                    stock += predicted_monthly_demand  # Simple replenishment
+                    order_incoming = False
+            
+            # Place order if needed
+            if not order_incoming and stock <= reorder_point:
+                order_incoming = True
+                order_pending_days = lead_time
+                orders_placed += 1
+                
+            stock_sum += stock
+            
+        avg_stock = stock_sum / 30.0
+        
+        total_holding_cost = avg_stock * holding_cost_per_unit
+        total_ordering_cost = orders_placed * ordering_cost
+        total_stockout_cost = stockout_sum * stockout_cost_per_unit
+        
+        return total_holding_cost + total_ordering_cost + total_stockout_cost
+
+    def _create_individual(self, predicted_demand):
+        # Random genes
+        rp = random.randint(0, int(predicted_demand))
+        ss = random.randint(0, int(predicted_demand * 0.5))
+        rt = random.randint(0, len(self.routes) - 1)
+        return [rp, ss, rt]
+
+    def _mutate(self, gene, predicted_demand):
+        if random.random() < self.mutation_rate:
+            gene[0] = max(0, gene[0] + random.randint(-10, 10)) # RP
+        if random.random() < self.mutation_rate:
+            gene[1] = max(0, gene[1] + random.randint(-5, 5))   # SS
+        if random.random() < self.mutation_rate:
+            gene[2] = random.randint(0, len(self.routes) - 1)   # Route
+        return gene
+
+    def optimize_supply_chain(self, product_name, predicted_demand, current_stock):
+        if predicted_demand <= 0:
+            return {
+                "product": product_name,
+                "reorder_point": 0,
+                "safety_stock": 0,
+                "optimal_route": "None",
+                "estimated_cost": 0
+            }
+            
+        # Initialize population
+        population = [self._create_individual(predicted_demand) for _ in range(self.population_size)]
+        
+        for _ in range(self.generations):
+            # Evaluate fitness (Cost) - Lower is better
+            scores = [(ind, self._simulate_cost(ind, predicted_demand, current_stock)) for ind in population]
+            scores.sort(key=lambda x: x[1]) # Sort by cost ascending
+            
+            # Selection (Top 50%)
+            survivors = [s[0] for s in scores[:self.population_size // 2]]
+            
+            # Crossover & Refill
+            new_population = survivors[:]
+            while len(new_population) < self.population_size:
+                p1 = random.choice(survivors)
+                p2 = random.choice(survivors)
+                
+                # Crossover
+                child = [p1[0], p2[1], p1[2]] if random.random() > 0.5 else [p2[0], p1[1], p2[2]]
+                
+                # Mutation
+                child = self._mutate(child, predicted_demand)
+                new_population.append(child)
+                
+            population = new_population
+
+        # Best solution
+        best_gene = population[0]
+        best_cost = self._simulate_cost(best_gene, predicted_demand, current_stock)
+        
         return {
-            "reorder_point": 50,
-            "safety_stock": 20,
-            "optimal_route": "Route A -> Route B"
+            "product": product_name,
+            "reorder_point": best_gene[0],
+            "safety_stock": best_gene[1],
+            "optimal_route": self.routes[best_gene[2]]["name"],
+            "route_details": self.routes[best_gene[2]],
+            "estimated_cost": round(best_cost, 2)
         }
+

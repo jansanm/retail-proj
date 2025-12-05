@@ -66,6 +66,11 @@ def analyze_demand(request: AnalysisRequest):
             # Get stock
             stock = data_loader.get_product_stock(prod, request.year, request.month)
             
+            # Get details (price)
+            details = data_loader.get_product_details(prod)
+            price = details.get("price", 0)
+            cost = price * 0.7 # Assumption: 30% margin
+            
             # Calculate reorder
             reorder = int(predicted - (stock / 2))
             if reorder < 0: reorder = 0
@@ -75,7 +80,9 @@ def analyze_demand(request: AnalysisRequest):
                 "product": prod,
                 "stock": stock,
                 "predicted_demand": predicted,
-                "reorder_amount": reorder
+                "reorder_amount": reorder,
+                "price": round(price, 2),
+                "cost": round(cost, 2)
             })
             
     return {
@@ -102,6 +109,29 @@ def calculate_reorder(request: ReorderRequest):
         "supplier_available": supplier_available,
         "message": "Order placed successfully" if supplier_available else "Product not available with seller"
     }
+
+class OptimizationRequest(BaseModel):
+    product: str
+    year: int
+    month: int
+    holidays: Optional[int] = 0
+
+@app.post("/supply/optimize")
+def optimize_supply(request: OptimizationRequest):
+    # Predict Demand
+    predicted_demand = predictor.predict_single_item(request.product, request.year, request.month, request.holidays)
+    
+    # Get Current Stock
+    current_stock = data_loader.get_product_stock(request.product, request.year, request.month)
+    
+    # Run Genetic Optimization
+    result = optimizer.optimize_supply_chain(request.product, predicted_demand, current_stock)
+    
+    # Add context
+    result["predicted_demand"] = predicted_demand
+    result["current_stock"] = current_stock
+    
+    return result
 
 @app.get("/data/categories")
 def get_categories():

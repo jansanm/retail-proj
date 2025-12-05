@@ -99,3 +99,14 @@ class DataLoader:
     
     def get_all_data(self):
         return self.df
+
+    def get_product_details(self, product_name):
+        if self.df.empty:
+            return {"price": 0}
+        
+        filtered = self.df[self.df['product_name'] == product_name]
+        if not filtered.empty:
+            # Return the mean price (in case it varies) or just the first one
+            price = float(filtered['product_price'].mean())
+            return {"price": price}
+        return {"price": 0}

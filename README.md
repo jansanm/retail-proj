@@ -21,22 +21,26 @@ cloud/
 ## Backend Setup
 
 1. Navigate to the backend directory:
+
    ```bash
    cd /path/to/cloud/backend
    ```
 
 2. Create and activate a Python virtual environment:
+
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
 3. Install Python dependencies:
+
    ```bash
    pip install fastapi uvicorn python-multipart python-jose[cryptography] passlib[bcrypt] python-dotenv openpyxl scikit-learn pandas numpy
    ```
 
 4. Start the backend server:
+
    ```bash
    uvicorn main:app --reload --port 8001
    ```
@@ -46,16 +50,19 @@ cloud/
 ## Frontend Setup
 
 1. Open a new terminal and navigate to the frontend directory:
+
    ```bash
    cd /path/to/cloud/frontend
    ```
 
 2. Install Node.js dependencies:
+
    ```bash
    npm install
    ```
 
 3. Start the development server:
+
    ```bash
    npm start
    ```
@@ -89,15 +96,36 @@ cloud/
 
 For any issues or questions, please contact the development team.
 
+1.  cd /Users/quanteondev/Documents/cloud/backend
+    python3 -m uvicorn main:app --reload --port 8001
 
-1.
-cd /Users/quanteondev/Documents/cloud/backend
-python3 -m uvicorn main:app --reload --port 8001
+2.  curl -X POST http://localhost:8001/analysis/demand -H "Content-Type: application/json" -d '{"year": 2023, "month": 1, "holidays": 0}'
 
-2.
-curl -X POST http://localhost:8001/analysis/demand -H "Content-Type: application/json" -d '{"year": 2023, "month": 1, "holidays": 0}'
+3.  cd /Users/quanteondev/Documents/cloud/frontend
+    npm install
+    npm start
+    ./venv/bin/uvicorn main:app --reload --port 8001
 
-3.
-cd /Users/quanteondev/Documents/cloud/frontend
-npm install
-npm start
+# 1. Navigate to the backend directory
+
+cd backend
+
+# 2. Create a virtual environment (named 'venv')
+
+python3 -m venv venv
+
+# 3. Activate the virtual environment
+
+source venv/bin/activate
+
+# 4. Install the required dependencies
+
+pip install -r requirements.txt
+
+# 5. Run the server
+
+python -m uvicorn main:app --reload --port 8001
+
+curl -X POST http://localhost:8001/supply/optimize \
+-H "Content-Type: application/json" \
+-d '{"product": "Kellogg’s Corn Flakes", "year": 2023, "month": 1, "holidays": 0}'
