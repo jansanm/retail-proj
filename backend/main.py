@@ -85,9 +85,13 @@ def analyze_demand(request: AnalysisRequest):
                 "cost": round(cost, 2)
             })
             
+    # Get monthly trends
+    monthly_trends = data_loader.get_monthly_trends(request.year)
+
     return {
         "sales_data": sales_data,
-        "product_analysis": product_analysis
+        "product_analysis": product_analysis,
+        "monthly_trends": monthly_trends
     }
 
 @app.post("/supply/reorder")
@@ -140,6 +144,10 @@ def get_categories():
 @app.get("/data/products/{category}")
 def get_products(category: str):
     return data_loader.get_products_by_category(category)
+
+@app.get("/data/products")
+def get_all_products():
+    return data_loader.get_unique_products()
 
 if __name__ == "__main__":
     uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=True)

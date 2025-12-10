@@ -130,8 +130,8 @@ curl -X POST http://localhost:8001/supply/optimize \
 -H "Content-Type: application/json" \
 -d '{"product": "Kellogg’s Corn Flakes", "year": 2023, "month": 1, "holidays": 0}'
 
-
-
 1.It Evolves Multiple Solutions Simultaneously Instead of calculating one answer, the AI creates a chaotic "population" of 20 random strategies. Each strategy (individual) has a unique "DNA" consisting of a Reorder Point (when to buy), Safety Stock (how much extra to keep), and Logistics Route (Slow/Cheap vs Fast/Expensive).
+
 2.It Runs a 30-Day Cost Simulation The AI forces each strategy to survive a simulated month. It uses the predicted demand to simulate daily sales, inventory depletion, and restocking delays. If a strategy causes stockouts or holds too much inventory, it incurs a high "financial penalty" (cost).
+
 3.Survival of the Fittest After the simulation, the strategies with the lowest costs are selected as "parents." They mix their parameters (crossover) and slightly mutate their values to create a new, better generation. This process repeats for 10 generations, eventually converging on the mathematical "sweet spot" that minimizes cost while maximizing availability.

@@ -110,3 +110,44 @@ class DataLoader:
             price = float(filtered['product_price'].mean())
             return {"price": price}
         return {"price": 0}
+
+    def get_monthly_trends(self, year):
+        if self.df.empty:
+            return []
+        
+        trends = []
+        for m_num in range(1, 13):
+            m_name = self.month_map[m_num]
+            filtered = self.df[(self.df['year'] == year) & (self.df['month'] == m_name)]
+            sales = 0
+            if not filtered.empty:
+                sales = int(filtered['total_units_sold_in_month'].sum())
+            
+            trends.append({
+                "month": m_name[:3], # Short name: Jan, Feb, etc.
+                "sales": sales
+            })
+        return trends
+
+    def get_unique_products(self):
+        if self.df.empty:
+            return []
+        
+        # Get unique product names and categories
+        # Taking the last occurrence to pretty much ensure valid data
+        products_df = self.df[['product_name', 'product_category']].drop_duplicates(subset=['product_name'])
+        
+        result = []
+        for _, row in products_df.iterrows():
+            # Get latest stock for this product
+            stock = self.get_product_stock(row['product_name'])
+            
+            result.append({
+                "id": row['product_name'], # Using name as ID for consistency with backend logic
+                "name": row['product_name'],
+                "category": row['product_category'],
+                "remaining_stock": stock,
+                "supplier_id": "SPL-GEN" # Mock supplier ID
+            })
+            
+        return sorted(result, key=lambda x: x['name'])
