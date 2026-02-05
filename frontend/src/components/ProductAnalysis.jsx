@@ -44,7 +44,7 @@ const ProductAnalysis = () => {
         setLoading(true);
         setError('');
         try {
-            const response = await axios.post('http://localhost:8001/analysis/demand', { 
+            const response = await axios.post('http://localhost:8000/analysis/demand', { 
                 year, 
                 month, 
                 holidays 
@@ -204,18 +204,18 @@ const ProductAnalysis = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                             <div className="bg-white p-6 rounded-lg shadow">
                                 <h3 className="text-gray-500 text-sm font-medium">Total Revenue</h3>
-                                <p className="mt-2 text-3xl font-bold text-green-600">${metrics?.totalRevenue || '0'}</p>
+                                <p className="mt-2 text-3xl font-bold text-green-600">₹{metrics?.totalRevenue || '0'}</p>
                                 <p className="text-sm text-gray-500 mt-1">Projected for {new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}</p>
                             </div>
                             <div className="bg-white p-6 rounded-lg shadow">
                                 <h3 className="text-gray-500 text-sm font-medium">Total Cost</h3>
-                                <p className="mt-2 text-3xl font-bold text-red-600">${metrics?.totalCost || '0'}</p>
+                                <p className="mt-2 text-3xl font-bold text-red-600">₹{metrics?.totalCost || '0'}</p>
                                 <p className="text-sm text-gray-500 mt-1">Based on predicted demand</p>
                             </div>
                             <div className="bg-white p-6 rounded-lg shadow">
                                 <h3 className="text-gray-500 text-sm font-medium">Projected Profit</h3>
                                 <p className={`mt-2 text-3xl font-bold ${metrics?.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                    ${metrics?.profit || '0'}
+                                    ₹{metrics?.profit || '0'}
                                 </p>
                                 <p className="text-sm text-gray-500 mt-1">Profit Margin: {metrics?.profitMargin || '0'}%</p>
                             </div>
@@ -329,10 +329,10 @@ const ProductAnalysis = () => {
                                                         </span>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                        ${item.price ? item.price.toFixed(2) : 'N/A'}
+                                                        ₹{item.price ? item.price.toFixed(2) : 'N/A'}
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                        ${(item.predicted_demand * (item.price || 0)).toFixed(2)}
+                                                        ₹{(item.predicted_demand * (item.price || 0)).toFixed(2)}
                                                     </td>
                                                 </tr>
                                             ))}
@@ -357,7 +357,7 @@ const ProductAnalysis = () => {
                                                     <p className="text-sm text-gray-500">{item.category}</p>
                                                 </div>
                                                 <div className="text-right">
-                                                    <p className="font-semibold">${(item.predicted_demand * (item.price || 0)).toFixed(2)}</p>
+                                                    <p className="font-semibold">₹{(item.predicted_demand * (item.price || 0)).toFixed(2)}</p>
                                                     <p className="text-sm text-gray-500">{item.predicted_demand} units</p>
                                                 </div>
                                             </div>

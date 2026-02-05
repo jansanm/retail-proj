@@ -9,12 +9,16 @@ const ReorderInterface = () => {
     const [result, setResult] = useState(null);
     const [orderQuantity, setOrderQuantity] = useState(0);
     const [productsData, setProductsData] = useState([]);
+    const [orderHistory, setOrderHistory] = useState(() => {
+        const saved = localStorage.getItem('orderHistory');
+        return saved ? JSON.parse(saved) : [];
+    });
 
     // Fetch products from backend
     useEffect(() => {
         const fetchProducts = async () => {
             try {
-                const response = await axios.get('http://localhost:8001/data/products');
+                const response = await axios.get('http://localhost:8000/data/products');
                 const mappedData = response.data.map(item => ({
                     product_id: item.id,
                     product_name: item.name,
@@ -100,14 +104,21 @@ const ReorderInterface = () => {
 
         // In a real app, this would be an API call to your backend
         // For now, we'll simulate a successful order
-        setResult({
+        const newOrder = {
             success: true,
             product: product.name,
             quantity: qty,
             supplier_id: product.supplier_id,
             order_id: `ORD-${Date.now()}`,
-            message: 'Order placed successfully!'
-        });
+            message: 'Order placed successfully!',
+            timestamp: new Date().toLocaleString()
+        };
+
+        setResult(newOrder);
+        
+        const updatedHistory = [newOrder, ...orderHistory];
+        setOrderHistory(updatedHistory);
+        localStorage.setItem('orderHistory', JSON.stringify(updatedHistory));
         
         // Reset form inputs immediately, but keep the result visible until manually closed
         if (isQuick) {
@@ -274,6 +285,61 @@ const ReorderInterface = () => {
                     </div>
                 </div>
             )}
+
+            {/* Order History Table */}
+            <div className="mt-16">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold text-gray-800">Order History</h2>
+                    {orderHistory.length > 0 && (
+                        <button 
+                            onClick={() => {
+                                setOrderHistory([]);
+                                localStorage.removeItem('orderHistory');
+                            }}
+                            className="text-sm text-red-600 hover:text-red-800 font-medium"
+                        >
+                            Clear History
+                        </button>
+                    )}
+                </div>
+
+                {orderHistory.length > 0 ? (
+                    <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-200">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier ID</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {orderHistory.map((order) => (
+                                    <tr key={order.order_id} className="hover:bg-gray-50 transition-colors">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">{order.order_id}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.timestamp}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">{order.product}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{order.quantity}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.supplier_id}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                Completed
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div className="text-center py-12 bg-white rounded-lg border-2 border-dashed border-gray-300">
+                        <p className="text-gray-500">No recent orders found. Place an order to see it here.</p>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
