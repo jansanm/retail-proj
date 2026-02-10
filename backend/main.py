@@ -31,6 +31,7 @@ class AnalysisRequest(BaseModel):
     year: int
     month: int
     holidays: int
+    weekends: int = 0
 
 class ReorderRequest(BaseModel):
     year: int
@@ -39,6 +40,8 @@ class ReorderRequest(BaseModel):
     item: str
     product: str
     holidays: Optional[int] = 0
+    supplier_email: Optional[str] = ""
+    quantity: Optional[int] = 0
 
 # --- Endpoints ---
 
@@ -61,7 +64,10 @@ def analyze_demand(request: AnalysisRequest):
         products = data_loader.get_products_by_category(cat)
         for prod in products:
             # Predict demand
-            predicted = predictor.predict_single_item(prod, request.year, request.month, request.holidays)
+            # User logic: "logic applies of holiday so all the products will sell atleast 10 extra" 
+            # We combine weekends and holidays for the prediction boost
+            total_off_days = request.holidays + request.weekends
+            predicted = predictor.predict_single_item(prod, request.year, request.month, total_off_days)
             
             # Get stock
             stock = data_loader.get_product_stock(prod, request.year, request.month)
@@ -99,18 +105,32 @@ def calculate_reorder(request: ReorderRequest):
     predicted_demand = predictor.predict_single_item(request.product, request.year, request.month, request.holidays)
     remaining_stock = data_loader.get_product_stock(request.product, request.year, request.month)
     
-    reorder_amount = int(predicted_demand - (remaining_stock / 2))
-    if reorder_amount < 0:
-        reorder_amount = 0
+    if request.quantity and request.quantity > 0:
+        reorder_amount = request.quantity
+    else:
+        reorder_amount = int(predicted_demand - (remaining_stock / 2))
+        if reorder_amount < 0:
+            reorder_amount = 0
         
     supplier_available = data_loader.check_supplier_availability(request.product, reorder_amount)
     
+    # Calculate Bill
+    details = data_loader.get_product_details(request.product)
+    price = details.get("price", 0)
+    total_cost = reorder_amount * price
+
     return {
         "product": request.product,
         "predicted_demand": predicted_demand,
         "remaining_stock": remaining_stock,
         "reorder_amount": reorder_amount,
         "supplier_available": supplier_available,
+        "supplier_email": request.supplier_email,
+        "bill": {
+            "unit_price": round(price, 2),
+            "total_cost": round(total_cost, 2),
+            "currency": "USD"
+        },
         "message": "Order placed successfully" if supplier_available else "Product not available with seller"
     }
 

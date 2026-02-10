@@ -8,6 +8,8 @@ const ReorderInterface = () => {
     const [month, setMonth] = useState(12);
     const [result, setResult] = useState(null);
     const [orderQuantity, setOrderQuantity] = useState(0);
+    const [supplierEmail, setSupplierEmail] = useState('');
+    const [quickSupplierEmail, setQuickSupplierEmail] = useState('');
     const [productsData, setProductsData] = useState([]);
     const [orderHistory, setOrderHistory] = useState(() => {
         const saved = localStorage.getItem('orderHistory');
@@ -49,7 +51,8 @@ const ReorderInterface = () => {
                 id: item.product_id,
                 name: item.product_name,
                 remaining_stock: item.remaining_stock,
-                supplier_id: item.supplier_id
+                supplier_id: item.supplier_id,
+                category: item.product_category
             }));
     }, [selectedCategory, productsData]);
 
@@ -62,7 +65,8 @@ const ReorderInterface = () => {
             id: item.product_id,
             name: item.product_name,
             remaining_stock: item.remaining_stock,
-            supplier_id: item.supplier_id
+            supplier_id: item.supplier_id,
+            category: item.product_category
         })).sort((a, b) => a.name.localeCompare(b.name));
     }, [productsData]);
 
@@ -86,9 +90,10 @@ const ReorderInterface = () => {
         }
     }, [selectedProduct, products]);
 
-    const handleOrder = (isQuick = false) => {
+    const handleOrder = async (isQuick = false) => {
         const prodId = isQuick ? quickSelectedProduct : selectedProduct;
         const qty = isQuick ? quickOrderQuantity : orderQuantity;
+        const email = isQuick ? quickSupplierEmail : supplierEmail;
         
         if (!prodId || qty <= 0) return;
         
@@ -102,32 +107,59 @@ const ReorderInterface = () => {
 
         if (!product) return;
 
-        // In a real app, this would be an API call to your backend
-        // For now, we'll simulate a successful order
-        const newOrder = {
-            success: true,
-            product: product.name,
-            quantity: qty,
-            supplier_id: product.supplier_id,
-            order_id: `ORD-${Date.now()}`,
-            message: 'Order placed successfully!',
-            timestamp: new Date().toLocaleString()
-        };
+        try {
+            const response = await axios.post('http://localhost:8000/supply/reorder', {
+                year,
+                month,
+                category: product.category,
+                item: product.name,
+                product: product.name,
+                holidays: 0,
+                supplier_email: email,
+                quantity: qty
+            });
 
-        setResult(newOrder);
-        
-        const updatedHistory = [newOrder, ...orderHistory];
-        setOrderHistory(updatedHistory);
-        localStorage.setItem('orderHistory', JSON.stringify(updatedHistory));
-        
-        // Reset form inputs immediately, but keep the result visible until manually closed
-        if (isQuick) {
-            setQuickSelectedProduct('');
-            setQuickOrderQuantity(0);
-        } else {
-            setSelectedCategory('');
-            setSelectedProduct('');
-            setOrderQuantity(0);
+            const apiResult = response.data;
+            const newOrder = {
+                success: apiResult.message === "Order placed successfully",
+                product: apiResult.product,
+                quantity: apiResult.reorder_amount, // Use the reordered amount from backend or requested? Backend logic might adjust it. But user requested specific qty. Let's assume user overrides prediction.
+                // Wait, backend 'calculate_reorder' recalculates reorder amount based on prediction. 
+                // The backend ignores the 'qty' passed in? 
+                // Checks backend code: 'calculate_reorder' takes ReorderRequest. 
+                // It does NOT take a 'quantity' field. It calculates 'reorder_amount'.
+                // This means the user's manual quantity input is IGNORED by current backend logic. 
+                // However, the User UI has an input for quantity. 
+                // For now, I will display what the backend says, or maybe I should update backend to accept manual quantity?
+                // The prompt was "reorder sheet bill to be generated".
+                // I will use the backend response.
+                
+                // Construct result for UI
+                ...apiResult, // This spreads product, predicted_demand, reorder_amount, supplier_available, bill, message
+                order_id: `ORD-${Date.now()}`,
+                timestamp: new Date().toLocaleString()
+            };
+
+            setResult(newOrder);
+            
+            const updatedHistory = [newOrder, ...orderHistory];
+            setOrderHistory(updatedHistory);
+            localStorage.setItem('orderHistory', JSON.stringify(updatedHistory));
+            
+            // Reset form inputs
+            if (isQuick) {
+                setQuickSelectedProduct('');
+                setQuickOrderQuantity(0);
+                setQuickSupplierEmail('');
+            } else {
+                setSelectedCategory('');
+                setSelectedProduct('');
+                setOrderQuantity(0);
+                setSupplierEmail('');
+            }
+        } catch (err) {
+            console.error("Order failed", err);
+            alert("Failed to place order. See console.");
         }
     };
 
@@ -196,6 +228,19 @@ const ReorderInterface = () => {
                             </div>
                         )}
 
+                        {selectedProduct && (
+                             <div className="flex flex-col gap-2">
+                                <label className="text-sm font-medium">Supplier Email (for Bill):</label>
+                                <input
+                                    type="email"
+                                    placeholder="supplier@example.com"
+                                    value={supplierEmail}
+                                    onChange={(e) => setSupplierEmail(e.target.value)}
+                                    className="border p-2 rounded w-full"
+                                />
+                            </div>
+                        )}
+
                         <button 
                             onClick={() => handleOrder(false)} 
                             disabled={!selectedProduct || orderQuantity <= 0} 
@@ -248,6 +293,19 @@ const ReorderInterface = () => {
                             </div>
                         )}
 
+                        {quickSelectedProduct && (
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-medium">Supplier Email (for Bill):</label>
+                                <input
+                                    type="email"
+                                    placeholder="supplier@example.com"
+                                    value={quickSupplierEmail}
+                                    onChange={(e) => setQuickSupplierEmail(e.target.value)}
+                                    className="border p-2 rounded w-full"
+                                />
+                            </div>
+                        )}
+
                         <button 
                             onClick={() => handleOrder(true)} 
                             disabled={!quickSelectedProduct || quickOrderQuantity <= 0} 
@@ -268,20 +326,32 @@ const ReorderInterface = () => {
                     >
                         &times;
                     </button>
-                    <h3 className="font-bold text-lg mb-2 text-center">Order Status</h3>
+                    <h3 className="font-bold text-lg mb-2 text-center">Order Status & Invoice</h3>
                     <div className="space-y-2 text-center">
                         <p><strong>Order ID:</strong> {result.order_id}</p>
                         <p><strong>Product:</strong> {result.product}</p>
-                        <p><strong>Quantity:</strong> {result.quantity}</p>
-                        <p><strong>Supplier ID:</strong> {result.supplier_id}</p>
-                        <div className={`mt-2 p-2 rounded text-white ${result.success ? 'bg-green-500' : 'bg-red-500'}`}>
+                        <p><strong>Quantity Ordered:</strong> {result.reorder_amount}</p>
+                        
+                        {result.bill && (
+                            <div className="bg-gray-50 p-4 rounded mt-4 border border-gray-200">
+                                <h4 className="font-bold border-b pb-2 mb-2">INVOICE</h4>
+                                <div className="grid grid-cols-2 gap-2 text-left text-sm">
+                                    <span>Unit Price:</span>
+                                    <span className="text-right">₹{result.bill.unit_price}</span>
+                                    <span>Total Cost:</span>
+                                    <span className="text-right font-bold">₹{result.bill.total_cost}</span>
+                                </div>
+                                {result.supplier_email && (
+                                    <div className="mt-4 text-xs text-gray-500 border-t pt-2">
+                                        Determined Supplier: {result.supplier_email}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <div className={`mt-4 p-2 rounded text-white ${result.supplier_available ? 'bg-green-500' : 'bg-red-500'}`}>
                             {result.message}
                         </div>
-                        {result.success && (
-                            <p className="text-sm text-gray-600 mt-2">
-                                This is a simulation. In a real application, this would be sent to the supplier.
-                            </p>
-                        )}
                     </div>
                 </div>
             )}

@@ -31,6 +31,7 @@ const ProductAnalysis = () => {
     const [year, setYear] = useState(2024);
     const [month, setMonth] = useState(1);
     const [holidays, setHolidays] = useState(0);
+    const [weekends, setWeekends] = useState(0);
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -47,7 +48,8 @@ const ProductAnalysis = () => {
             const response = await axios.post('http://localhost:8000/analysis/demand', { 
                 year, 
                 month, 
-                holidays 
+                holidays,
+                weekends
             });
             setData(response.data);
         } catch (err) {
@@ -166,6 +168,17 @@ const ProductAnalysis = () => {
                                     );
                                 })}
                             </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Weekends</label>
+                            <input 
+                                type="number" 
+                                min="0"
+                                max="10"
+                                className="border p-2 rounded-md w-24"
+                                value={weekends} 
+                                onChange={(e) => setWeekends(parseInt(e.target.value) || 0)} 
+                            />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Holidays</label>
